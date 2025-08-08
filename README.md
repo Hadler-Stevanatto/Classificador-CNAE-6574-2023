@@ -1,0 +1,1 @@
+# Classificador-CNAE-6574-2023
