@@ -340,6 +340,9 @@
             'ZR1': ['A0']
         };
 
+        // CORREÇÃO: Lista de zonas onde a atividade uR (incomodidade 0) é permitida.
+        const uRAllowedZones = ['ZR1', 'ZRRM1', 'ZRRM2', 'ZM', 'ZEIS1', 'ZEIS2', 'MDO1', 'MDO2'];
+
         // Seletores de elementos do DOM
         const inscricaoSearchInput = document.getElementById('inscricao-search');
         const cnaeSearchInput = document.getElementById('cnae-search-input');
@@ -379,15 +382,30 @@
         }
 
         // Mapeamento da regra de exibição das atividades permitidas para inscrição
-        function formatarAtividadesPermitidas(grupoAtv) {
+        function formatarAtividadesPermitidas(grupoAtv, zonaCode) {
+            let activities = '';
             switch (grupoAtv) {
-                case 'A0': return 'uR';
-                case 'A1': return 'uR e nR1';
-                case 'A2': return 'uR, nR1 e nR2';
-                case 'A3': return 'uR, nR1, nR2 e nR3';
-                case 'A4': return 'uR, nR1, nR2, nR3 e nR4';
+                case 'A0': activities = 'uR'; break;
+                case 'A1': activities = 'uR e nR1'; break;
+                case 'A2': activities = 'uR, nR1 e nR2'; break;
+                case 'A3': activities = 'uR, nR1, nR2 e nR3'; break;
+                case 'A4': activities = 'uR, nR1, nR2, nR3 e nR4'; break;
                 default: return 'Grupo de Atividade não encontrado';
             }
+
+            // CORREÇÃO: Remove 'uR' se a zona não estiver na lista de permissão.
+            const baseZone = zoneMapping[zonaCode] || zonaCode;
+            if (!uRAllowedZones.includes(baseZone)) {
+                if (activities.startsWith('uR, ')) {
+                    return activities.substring(4); // Remove 'uR, '
+                } else if (activities.startsWith('uR e ')) {
+                    return activities.substring(5); // Remove 'uR e '
+                } else if (activities === 'uR') {
+                    return 'Nenhuma'; // Se for apenas uR, retorna 'Nenhuma'
+                }
+            }
+            
+            return activities;
         }
         
         // Mapeamento da regra de exibição da incomodidade para CNAE
@@ -433,10 +451,11 @@
                 resultsInscricaoSection.classList.remove('hidden');
 
                 const zonaCode = data.zone;
-                const zonaDescricao = zoneDescriptions[zoneMapping[zonaCode] || zonaCode] || 'Descrição não disponível';
+                const zonaDescricao = zoneDescriptions[zonaCode] || zoneDescriptions[zoneMapping[zonaCode]] || 'Descrição não disponível';
                 const grupoAtv = data.grupoAtv || '';
                 
-                const atividadesPermitidasDisplay = formatarAtividadesPermitidas(grupoAtv);
+                // CORREÇÃO: Passa o zonaCode para a função de formatação
+                const atividadesPermitidasDisplay = formatarAtividadesPermitidas(grupoAtv, zonaCode);
 
                 const row = document.createElement('tr');
                 row.className = 'hover:bg-gray-50 transition duration-150 ease-in-out';
@@ -540,7 +559,12 @@
                         let compatibilidadeText = '';
                         let compatibilidadeClass = '';
 
-                        if (incomodidade === '5') {
+                        // CORREÇÃO: Verifica se uR é permitido na zona do imóvel ativo
+                        const baseZone = zoneMapping[activeInscricaoData.zone] || activeInscricaoData.zone;
+                        if (cnaeIncomodidadeLevel === 0 && !uRAllowedZones.includes(baseZone)) {
+                             compatibilidadeText = 'NÃO COMPATÍVEL';
+                             compatibilidadeClass = 'bg-red-100 text-red-800';
+                        } else if (incomodidade === '5') {
                             compatibilidadeText = 'ANÁLISE';
                             compatibilidadeClass = 'bg-yellow-100 text-yellow-800';
                         } else {
@@ -608,8 +632,8 @@
             
             // Exibe a informação da zona e os grupos de atividade
             zoneInfo.classList.remove('hidden');
-            const allowedGroupsString = allowedGroups.map(group => formatarAtividadesPermitidas(group)).join(', ');
-            zoneAllowedActivities.textContent = allowedGroupsString || 'Nenhuma atividade permitida';
+            const allowedGroupsString = allowedGroups.map(group => formatarAtividadesPermitidas(group, zoneQuery)).join(', ');
+            zoneAllowedActivities.textContent = allowedGroupsString || 'Nenhuma';
 
             const maxAllowedLevel = allowedGroups.reduce((max, group) => {
                 const level = levelMap[group];
@@ -619,6 +643,11 @@
             const filteredCnaes = cnaeData.filter(item => {
                 const incomodidade = getValueFromItem(item, ['INCOMODIDADE']);
                 const cnaeLevel = parseInt(incomodidade, 10);
+                
+                // CORREÇÃO: Se a incomodidade for 0 (uR), só é permitido nas zonas especificadas.
+                if (cnaeLevel === 0 && !uRAllowedZones.includes(zoneQuery)) {
+                    return false;
+                }
                 
                 return cnaeLevel <= maxAllowedLevel;
             });
@@ -759,7 +788,7 @@
             if (currentSearchType === 'inscricao' && !resultsInscricaoSection.classList.contains('hidden')) {
                 printTitle = 'Relatório de Consulta de Inscrição';
                 const inscricaoData = currentSearchParams.inscricaoData;
-                const zonaDescricao = zoneDescriptions[zoneMapping[inscricaoData.zone] || inscricaoData.zone] || 'Descrição não disponível';
+                const zonaDescricao = zoneDescriptions[inscricaoData.zone] || zoneDescriptions[zoneMapping[inscricaoData.zone]] || 'Descrição não disponível';
                 inscricaoDetailsHtml = `
                     <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem;">Dados do Imóvel</h3>
                     <p><strong>Inscrição:</strong> ${inscricaoData.inscricao}</p>
@@ -767,7 +796,7 @@
                     <p><strong>Área Terreno:</strong> ${inscricaoData.areaTerreno || '-'}</p>
                     <p><strong>Área Edificada:</strong> ${inscricaoData.areaEdificada || '-'}</p>
                     <p><strong>Zona do Imóvel:</strong> ${inscricaoData.zone} - ${zonaDescricao}</p>
-                    <p><strong>Atividades Permitidas:</strong> ${formatarAtividadesPermitidas(inscricaoData.grupoAtv)}</p>
+                    <p><strong>Atividades Permitidas:</strong> ${formatarAtividadesPermitidas(inscricaoData.grupoAtv, inscricaoData.zone)}</p>
                 `;
                 contentToPrint = resultsInscricaoSection.outerHTML;
             } else if (currentSearchType === 'cnae' && !resultsCnaeSection.classList.contains('hidden')) {
@@ -776,7 +805,7 @@
                 
                 if (activeInscricaoData) {
                     const inscricaoData = activeInscricaoData;
-                    const zonaDescricao = zoneDescriptions[zoneMapping[inscricaoData.zone] || inscricaoData.zone] || 'Descrição não disponível';
+                    const zonaDescricao = zoneDescriptions[inscricaoData.zone] || zoneDescriptions[zoneMapping[inscricaoData.zone]] || 'Descrição não disponível';
                     inscricaoDetailsHtml = `
                         <h3 class="separator" style="font-size: 1.25rem; font-weight: bold; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ccc; margin-bottom: 0.5rem;">Verificação de Compatibilidade</h3>
                         <p><strong>Inscrição:</strong> ${inscricaoData.inscricao}</p>
@@ -784,7 +813,7 @@
                         <p><strong>Área Terreno:</strong> ${inscricaoData.areaTerreno || '-'}</p>
                         <p><strong>Área Edificada:</strong> ${inscricaoData.areaEdificada || '-'}</p>
                         <p><strong>Zona do Imóvel:</strong> ${inscricaoData.zone} - ${zonaDescricao}</p>
-                        <p><strong>Atividades Permitidas:</strong> ${formatarAtividadesPermitidas(inscricaoData.grupoAtv)}</p>
+                        <p><strong>Atividades Permitidas:</strong> ${formatarAtividadesPermitidas(inscricaoData.grupoAtv, inscricaoData.zone)}</p>
                     `;
                 }
                 printSubtitle = `
@@ -915,4 +944,3 @@
     </script>
 </body>
 </html>
-
