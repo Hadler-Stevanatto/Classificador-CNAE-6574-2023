@@ -76,7 +76,7 @@
                 word-wrap: break-word;
                 white-space: normal;
                 border: 1px solid #ddd;
-                padding: 8px;
+                padding: 4px; /* Reduzido */
             }
             .print-table thead {
                 background-color: #eee !important;
@@ -98,11 +98,11 @@
             }
             @page {
                 size: A4;
-                margin: 1.5cm;
+                margin: 1cm; /* Reduzido */
                 @bottom-right {
                     content: "Página " counter(page) " de " counter(pages);
                     font-family: 'Inter', sans-serif;
-                    font-size: 10pt;
+                    font-size: 9pt;
                     color: #666;
                 }
             }
@@ -790,7 +790,7 @@
                 const inscricaoData = currentSearchParams.inscricaoData;
                 const zonaDescricao = zoneDescriptions[inscricaoData.zone] || zoneDescriptions[zoneMapping[inscricaoData.zone]] || 'Descrição não disponível';
                 inscricaoDetailsHtml = `
-                    <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem;">Dados do Imóvel</h3>
+                    <h3 style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.2rem;">Dados do Imóvel</h3>
                     <p><strong>Inscrição:</strong> ${inscricaoData.inscricao}</p>
                     <p><strong>Endereço:</strong> ${inscricaoData.endereco || '-'}</p>
                     <p><strong>Área Terreno:</strong> ${inscricaoData.areaTerreno || '-'}</p>
@@ -807,7 +807,7 @@
                     const inscricaoData = activeInscricaoData;
                     const zonaDescricao = zoneDescriptions[inscricaoData.zone] || zoneDescriptions[zoneMapping[inscricaoData.zone]] || 'Descrição não disponível';
                     inscricaoDetailsHtml = `
-                        <h3 class="separator" style="font-size: 1.25rem; font-weight: bold; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ccc; margin-bottom: 0.5rem;">Verificação de Compatibilidade</h3>
+                        <h3 class="separator" style="font-size: 1.1rem; font-weight: bold; margin-top: 0.8rem; padding-top: 0.5rem; border-top: 1px solid #ccc; margin-bottom: 0.2rem;">Verificação de Compatibilidade</h3>
                         <p><strong>Inscrição:</strong> ${inscricaoData.inscricao}</p>
                         <p><strong>Endereço:</strong> ${inscricaoData.endereco || '-'}</p>
                         <p><strong>Área Terreno:</strong> ${inscricaoData.areaTerreno || '-'}</p>
@@ -817,29 +817,30 @@
                     `;
                 }
                 printSubtitle = `
-                    <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem;">Filtros de Busca</h3>
+                    <h3 style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.2rem;">Filtros de Busca</h3>
                     <p><strong>CNAE(s) Consultados:</strong> ${tagsList}</p>
                 `;
                 contentToPrint = resultsCnaeSection.outerHTML;
             } else if (currentSearchType === 'zona' && !resultsZoneSection.classList.contains('hidden')) {
                 printTitle = 'Relatório de Classificação por Zona';
                 printSubtitle = `
-                    <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.5rem;">Filtros de Busca</h3>
+                    <h3 style="font-size: 1.1rem; font-weight: bold; margin-bottom: 0.2rem;">Filtros de Busca</h3>
                     <p><strong>Zona Consultada:</strong> ${currentSearchParams.zone} - ${zoneDescriptions[currentSearchParams.zone]}</p>
                     <p><strong>Atividades Permitidas:</strong> ${currentSearchParams.allowedActivities}</p>
                 `;
                 contentToPrint = resultsZoneSection.outerHTML;
             } else {
-                alert('Nenhum resultado para imprimir. Realize uma busca primeiro.');
+                // Substituindo alert por um modal ou mensagem embutida no futuro
+                console.error('Nenhum resultado para imprimir. Realize uma busca primeiro.');
                 return;
             }
             
             // 2. Prepara o conteúdo completo para o corpo da janela de impressão
             const printContentHtml = `
-                <div class="print-header" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #ccc;">
-                    <h1 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 0.25rem;">${printTitle}</h1>
-                    <p style="font-size: 0.9rem;">Baseado na Lei de Uso e Ocupação do Solo de Valinhos (Lei 6574/2023)</p>
-                    <p class="separator" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ccc;"><strong>Data de Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</p>
+                <div class="print-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #ccc;">
+                    <h1 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.1rem;">${printTitle}</h1>
+                    <p style="font-size: 0.8rem;">Baseado na Lei de Uso e Ocupação do Solo de Valinhos (Lei 6574/2023)</p>
+                    <p class="separator" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc;"><strong>Data de Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</p>
                     <div class="separator">${printSubtitle}</div>
                     ${inscricaoDetailsHtml || ''}
                 </div>
@@ -861,19 +862,18 @@
                 <head>
                     <meta charset="UTF-8">
                     <title>${printTitle}</title>
-                    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
                     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
                     <style>
-                        body { font-family: 'Inter', sans-serif; margin: 0; padding: 1.5cm; }
-                        h1 { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.25rem; }
-                        h3 { font-size: 1.25rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-                        p { font-size: 0.9rem; line-height: 1.5; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 1rem; table-layout: auto; }
-                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; word-wrap: break-word; font-size: 0.875rem; }
-                        thead { background-color: #eee; }
-                        .bg-green-100 { background-color: #d1fae5; color: #065f46; }
-                        .bg-red-100 { background-color: #fee2e2; color: #991b1b; }
-                        .bg-yellow-100 { background-color: #fef3c7; color: #b45309; }
+                        body { font-family: 'Inter', sans-serif; margin: 0; }
+                        h1 { font-size: 1.2rem; font-weight: bold; margin-bottom: 0.1rem; }
+                        h3 { font-size: 1.1rem; font-weight: bold; margin-top: 0.8rem; margin-bottom: 0.2rem; }
+                        p { font-size: 0.8rem; line-height: 1.2; margin: 0.2rem 0; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; table-layout: auto; }
+                        th, td { border: 1px solid #ddd; padding: 4px; text-align: left; word-wrap: break-word; font-size: 0.75rem; }
+                        thead { background-color: #f2f2f2 !important; print-color-adjust: exact; }
+                        .bg-green-100 { background-color: #d1fae5 !important; color: #065f46 !important; print-color-adjust: exact; }
+                        .bg-red-100 { background-color: #fee2e2 !important; color: #991b1b !important; print-color-adjust: exact; }
+                        .bg-yellow-100 { background-color: #fef3c7 !important; color: #b45309 !important; print-color-adjust: exact; }
                         .rounded-full { border-radius: 9999px; }
                         .px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
                         .leading-5 { line-height: 1.25rem; }
@@ -881,22 +881,20 @@
                         .inline-flex { display: inline-flex; align-items: center; }
                         .text-xs { font-size: 0.75rem; }
                         .uppercase { text-transform: uppercase; }
-                        .separator { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #ccc; }
+                        .separator { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc; }
                         @page {
                             size: A4;
-                            margin: 1.5cm;
+                            margin: 1cm;
                             @bottom-right {
                                 content: "Página " counter(page) " de " counter(pages);
-                                font-size: 10pt;
+                                font-size: 9pt;
                                 color: #666;
                             }
                         }
                     </style>
                 </head>
                 <body>
-                    <div style="padding: 1rem;">
-                        ${printContentHtml}
-                    </div>
+                    ${printContentHtml}
                 </body>
                 </html>
             `);
@@ -944,6 +942,3 @@
     </script>
 </body>
 </html>
-
-
-
