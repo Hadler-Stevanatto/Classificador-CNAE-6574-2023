@@ -123,10 +123,10 @@
         <main>
             <!-- Seção de Busca por Inscrição -->
             <div class="p-4 rounded-lg border border-gray-200 shadow-sm mb-6 bg-white no-print">
-                <h2 class="text-lg font-semibold text-gray-800 mb-4">Buscar por Inscrição Imobiliária (IPTU)</h2>
-                <label for="inscricao-search" class="block text-sm font-medium text-gray-700 mb-2">Digite uma inscrição:</label>
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">Buscar por Inscrição Imobiliária (IPTU) ou Endereço</h2>
+                <label for="inscricao-search" class="block text-sm font-medium text-gray-700 mb-2">Digite uma inscrição ou endereço:</label>
                 <div class="relative">
-                    <input type="text" id="inscricao-search" placeholder="Ex: 12345" class="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out search-input" disabled>
+                    <input type="text" id="inscricao-search" placeholder="Ex: 12345 ou nome da rua" class="w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 ease-in-out search-input" disabled>
                     <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                         <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" /></svg>
                     </div>
@@ -292,6 +292,7 @@
         let cnaeData = [];
         let cnaeMeiData = [];
         let inscricaoDataMap = new Map();
+        let inscricaoDataArray = [];
         let cnaeSearchTags = [];
         let cnaeMeiSearchTags = [];
         let activeInscricaoData = null;
@@ -329,7 +330,7 @@
             'ZEIS2': 'ZONA ESPECIAL DE INTERESSE SOCIAL 2',
             'ZM': 'ZONA MISTA',
             'ZRRM1': 'ZONA RESIDENCIAL DE BAIXA DENSIDADE E RECUPERACAO DE MANANCIAIS 1',
-            'ZRRM2': 'ZONA RESIDENCIAL DE BAIXA DENSIDADE E RECUPERACAO DE MANANCIAIS 2',
+            'ZRRM2': 'ZONA RESIDENCIAL DE BAIXA DENSidade E RECUPERACAO DE MANANCIAIS 2',
             'ZR1': 'ZONA RESIDENCIAL DE BAIXA DENSIDADE 1',
         
             // Zonas Adicionadas
@@ -468,7 +469,7 @@
 
         // Função para buscar e exibir os detalhes de uma inscrição
         function searchByInscricao() {
-            const inscricaoQuery = inscricaoSearchInput.value.trim();
+            const query = inscricaoSearchInput.value.trim();
             resultsTableInscricao.innerHTML = '';
             inscricaoFeedback.textContent = '';
             
@@ -483,7 +484,7 @@
             resultsZoneSection.classList.add('hidden');
             zoneInfo.classList.add('hidden');
             
-            if (inscricaoQuery === '') {
+            if (query === '') {
                 resultsInscricaoSection.classList.add('hidden');
                 activeInscricaoData = null;
                 compatibilidadeHeader.classList.add('hidden');
@@ -494,54 +495,90 @@
                 return;
             }
 
-            const data = inscricaoDataMap.get(inscricaoQuery);
+            const lowerCaseQuery = query.toLowerCase();
+            let allResults = [];
+
+            // Tenta busca por inscrição exata primeiro (mais rápido)
+            if (inscricaoDataMap.has(query)) {
+                allResults.push(inscricaoDataMap.get(query));
+            } else {
+                if (query.length < 3) {
+                    inscricaoFeedback.textContent = 'Digite pelo menos 3 caracteres para buscar por endereço.';
+                    inscricaoFeedback.className = 'text-xs mt-1 h-4 text-gray-500';
+                    resultsInscricaoSection.classList.add('hidden');
+                    return;
+                }
+                // Se não for inscrição exata, busca no array por inscrição ou endereço
+                allResults = inscricaoDataArray.filter(item => {
+                    const endereco = (item.endereco || '').toLowerCase();
+                    const inscricao = (item.inscricao || '').toString();
+                    return inscricao.includes(lowerCaseQuery) || endereco.includes(lowerCaseQuery);
+                });
+            }
             
-            if (data) {
-                activeInscricaoData = data;
+            const totalResultsCount = allResults.length;
+            const results = allResults.slice(0, 5); // Limita os resultados a 5
+
+            if (results.length > 0) {
                 resultsInscricaoSection.classList.remove('hidden');
-
-                const zonaCode = data.zone;
-                const zonaDescricao = zoneDescriptions[zonaCode] || zoneDescriptions[zoneMapping[zonaCode]] || 'Descrição não disponível';
-                const grupoAtv = data.grupoAtv || '';
                 
-                const atividadesPermitidasDisplay = formatarAtividadesPermitidas(grupoAtv, zonaCode);
+                if (totalResultsCount === 1) {
+                    activeInscricaoData = results[0];
+                    inscricaoFeedback.textContent = 'Resultado encontrado! Agora você pode buscar CNAEs para verificar a compatibilidade.';
+                    inscricaoFeedback.className = 'text-xs mt-1 h-4 text-green-600 font-semibold';
+                    
+                    cnaeSearchInput.disabled = false;
+                    cnaeMeiSearchInput.disabled = false;
+                    compatibilidadeHeader.classList.remove('hidden');
+                    compatibilidadeHeader.textContent = `COMPATIBILIDADE`;
+                    compatibilidadeMeiHeader.classList.remove('hidden');
+                    compatibilidadeMeiHeader.textContent = `COMPATIBILIDADE`;
+                } else {
+                    activeInscricaoData = null;
+                    if (totalResultsCount > 5) {
+                        inscricaoFeedback.textContent = `Exibindo os 5 primeiros de ${totalResultsCount} resultados. Refine sua busca ou use a inscrição exata.`;
+                    } else {
+                         inscricaoFeedback.textContent = `${totalResultsCount} resultados encontrados. Para verificar a compatibilidade, use a inscrição exata.`;
+                    }
+                    inscricaoFeedback.className = 'text-xs mt-1 h-4 text-blue-600 font-semibold';
+                    compatibilidadeHeader.classList.add('hidden');
+                    compatibilidadeMeiHeader.classList.add('hidden');
+                }
 
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50 transition duration-150 ease-in-out';
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${data.inscricao}</td>
-                    <td class="px-6 py-4 whitespace-normal text-sm">${data.endereco || '-'}</td>
-                    <td class="px-6 py-4 whitespace-normal text-sm">${data.areaTerreno || '-'}</td>
-                    <td class="px-6 py-4 whitespace-normal text-sm">${data.areaEdificada || '-'}</td>
-                    <td class="px-6 py-4 whitespace-normal text-sm"><span class="font-semibold">${zonaCode}</span> - ${zonaDescricao}</td>
-                    <td class="px-6 py-4 whitespace-normal text-sm">${atividadesPermitidasDisplay}</td>
-                `;
-                resultsTableInscricao.appendChild(row);
+                results.forEach(data => {
+                    const zonaCode = data.zone;
+                    const zonaDescricao = zoneDescriptions[zonaCode] || zoneDescriptions[zoneMapping[zonaCode]] || 'Descrição não disponível';
+                    const grupoAtv = data.grupoAtv || '';
+                    const atividadesPermitidasDisplay = formatarAtividadesPermitidas(grupoAtv, zonaCode);
 
-                inscricaoFeedback.textContent = 'Inscrição encontrada! Agora você pode buscar CNAEs para verificar a compatibilidade.';
-                inscricaoFeedback.className = 'text-xs mt-1 h-4 text-green-600 font-semibold';
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 transition duration-150 ease-in-out';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">${data.inscricao}</td>
+                        <td class="px-6 py-4 whitespace-normal text-sm">${data.endereco || '-'}</td>
+                        <td class="px-6 py-4 whitespace-normal text-sm">${data.areaTerreno || '-'}</td>
+                        <td class="px-6 py-4 whitespace-normal text-sm">${data.areaEdificada || '-'}</td>
+                        <td class="px-6 py-4 whitespace-normal text-sm"><span class="font-semibold">${zonaCode}</span> - ${zonaDescricao}</td>
+                        <td class="px-6 py-4 whitespace-normal text-sm">${atividadesPermitidasDisplay}</td>
+                    `;
+                    resultsTableInscricao.appendChild(row);
+                });
                 
-                cnaeSearchInput.disabled = false;
-                cnaeMeiSearchInput.disabled = false;
-                compatibilidadeHeader.classList.remove('hidden');
-                compatibilidadeHeader.textContent = `COMPATIBILIDADE`;
-                compatibilidadeMeiHeader.classList.remove('hidden');
-                compatibilidadeMeiHeader.textContent = `COMPATIBILIDADE`;
-                filterCnaes();
-                filterCnaesMei();
-
                 printButton.disabled = false;
+
             } else {
                 activeInscricaoData = null;
-                inscricaoFeedback.textContent = 'Inscrição não encontrada. Verifique o número digitado.';
+                inscricaoFeedback.textContent = 'Nenhum resultado encontrado. Verifique o termo digitado.';
                 inscricaoFeedback.className = 'text-xs mt-1 h-4 text-red-600';
                 resultsInscricaoSection.classList.add('hidden');
                 compatibilidadeHeader.classList.add('hidden');
                 compatibilidadeMeiHeader.classList.add('hidden');
-                filterCnaes();
-                filterCnaesMei();
                 printButton.disabled = true;
             }
+
+            // Atualiza as tabelas de CNAE com base no novo estado (se há ou não um 'activeInscricaoData')
+            filterCnaes();
+            filterCnaesMei();
         }
 
         // Função para renderizar as tags de busca do CNAE
@@ -867,6 +904,7 @@
             });
             
             cnaeData = Array.from(uniqueCnaeMap.values());
+            inscricaoDataArray = Array.from(inscricaoDataMap.values());
 
             const zones = Object.keys(simplifiedZoneToCategoryMapping).sort();
             zoneSelect.innerHTML = '<option value="">Selecione uma zona</option>';
@@ -940,13 +978,14 @@
         // Função para imprimir o conteúdo da página com cabeçalho dinâmico e rodapé com paginação
         function printCurrentResults() {
             let contentToPrint = '';
-            let printTitle = 'Relatório de Consulta de Zoneamento';
+            let finalFileName = 'Consulta de Zoneamento - Relatório';
             let subtitleParts = [];
             let inscricaoDetailsHtml = '';
             let hasContent = false;
 
-            // 1. Prepara detalhes da Inscrição, se houver
+            // 1. Prepara detalhes da Inscrição, se houver, e define o nome do ficheiro
             if (activeInscricaoData) {
+                finalFileName = `Consulta de zoneamento - ${activeInscricaoData.inscricao}`;
                 const inscricaoData = activeInscricaoData;
                 const zonaDescricao = zoneDescriptions[inscricaoData.zone] || zoneDescriptions[zoneMapping[inscricaoData.zone]] || 'Descrição não disponível';
                 inscricaoDetailsHtml = `
@@ -999,7 +1038,7 @@
             
             const printContentHtml = `
                 <div class="print-header" style="margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #ccc;">
-                    <h1 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.1rem;">${printTitle}</h1>
+                    <h1 style="font-size: 1.2rem; font-weight: bold; margin-bottom: 0.1rem;">Relatório de Consulta de Zoneamento</h1>
                     <p style="font-size: 0.8rem;">Baseado na Lei de Uso e Ocupação do Solo de Valinhos (Lei 6574/2023)</p>
                     <p class="separator" style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #ccc;"><strong>Data de Emissão:</strong> ${new Date().toLocaleString('pt-BR')}</p>
                     <div class="separator">${printSubtitle}</div>
@@ -1007,6 +1046,9 @@
                 </div>
                 ${contentToPrint}
             `;
+
+            const originalTitle = document.title;
+            document.title = finalFileName;
             
             // 6. Cria o iframe e imprime
             const printFrame = document.createElement('iframe');
@@ -1020,7 +1062,7 @@
                 <html lang="pt-BR">
                 <head>
                     <meta charset="UTF-8">
-                    <title>${printTitle}</title>
+                    <title>${finalFileName}</title>
                     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
                     <style>
                         body { font-family: 'Inter', sans-serif; margin: 0; }
@@ -1060,10 +1102,22 @@
             `);
             printDocument.close();
 
+            const restoreTitle = () => {
+                document.title = originalTitle;
+                window.removeEventListener('afterprint', restoreTitle);
+            };
+            window.addEventListener('afterprint', restoreTitle);
+
             printFrame.contentWindow.onload = function() {
-                printFrame.contentWindow.focus();
-                printFrame.contentWindow.print();
-                document.body.removeChild(printFrame);
+                try {
+                    printFrame.contentWindow.focus();
+                    printFrame.contentWindow.print();
+                } catch(e) {
+                    console.error("A impressão falhou:", e);
+                    restoreTitle(); // Restaura o título se a impressão falhar
+                } finally {
+                    document.body.removeChild(printFrame);
+                }
             };
         }
         
@@ -1076,6 +1130,15 @@
             loadCsvFromUrl(meiCsvUrl, processAndSetMeiData, statusMessageMei);
 
             inscricaoSearchInput.addEventListener('input', searchByInscricao);
+
+            // Adiciona um listener para a tecla 'Enter' na busca por inscrição
+            inscricaoSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault(); // Impede o comportamento padrão do Enter
+                    inscricaoSearchInput.blur(); // Tira o foco do campo de busca
+                }
+            });
+            
             zoneSelect.addEventListener('change', searchByZone);
             
             cnaeSearchInput.addEventListener('keydown', (e) => {
